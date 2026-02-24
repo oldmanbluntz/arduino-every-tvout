@@ -29,7 +29,7 @@
 #define ASM_MACROS_H
 
 #if defined(__AVR_ATmega4809__)
-
+#define bst_hws "bst r16, 2 \n\t"
 // --- Nano Every (ATmega4809) @ 20MHz Version ---
 
 __asm__ __volatile__ (
@@ -79,4 +79,5 @@ __asm__ __volatile__ (
 #endif
 
 #endif
+
 
