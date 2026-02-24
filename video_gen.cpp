@@ -203,9 +203,9 @@ static void inline wait_until(uint8_t time) {
 		:
 		: [time] "a" (time),
 #if defined(__AVR_ATmega4809__)
-		[tcnt1l] "a" (TCB0.CNTL)
+    [tcnt1l] "a" (TCB0.CNTL) 
 #else
-		[tcnt1l] "a" (TCNT1L)
+    [tcnt1l] "a" (TCNT1L)
 #endif
 	);
 }
@@ -457,5 +457,6 @@ void render_line3c() {
 	// would require significant rework for 20MHz/4809.
 	// For now, it remains original.
 }
+
 
 
