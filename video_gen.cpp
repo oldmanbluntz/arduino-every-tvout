@@ -164,12 +164,17 @@ void vsync_line() {
 #endif
 		display.scanLine = 0;
 		display.frames++;
+		
 		if (remainingToneVsyncs != 0) {
 			if (remainingToneVsyncs > 0) remainingToneVsyncs--;
 		} else {
-#if !defined(__AVR_ATmega4809__)
-			TCCR2B = 0;
- 			PORTB &= ~(_BV(SND_PIN));
+			// STOP TONE LOGIC
+#if defined(__AVR_ATmega4809__)
+			TCB1.CTRLA = 0;             // Stop Timer B1
+			VPORTE.OUT &= ~PIN3_bm;    // Ensure Pin D8 is LOW
+#else
+			TCCR2B = 0;                // stop the tone for 328P
+ 			PORT_SND &= ~(_BV(SND_PIN));
 #endif
 		}
 	}
@@ -283,3 +288,4 @@ void render_line6c() {
 // Note: render_line5c and 4c would need similar delay adjustments for 20MHz.
 void render_line5c() { /* Original logic preserved */ }
 void render_line4c() { /* Original logic preserved */ }
+
