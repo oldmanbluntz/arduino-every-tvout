@@ -73,10 +73,10 @@ void render_setup(uint8_t mode, uint8_t x, uint8_t y, uint8_t *scrnptr) {
 	DDR_SND |= _BV(SND_PIN);
 	
 #if defined(__AVR_ATmega4809__)
-    // Nano Every 20MHz Timer Setup (TCB0)
-    TCB0.CTRLB = TCB_CNTMODE_INT_gc; // Periodic Interrupt
-    TCB0.INTCTRL = TCB_CAPT_bm;      // Enable Interrupt
-    TCB0.CTRLA = TCB_ENABLE_bm;      // Start Timer
+    TCB0.CTRLB = TCB_CNTMODE_INT_gc; 
+    TCB0.CCMP = (mode == 0) ? 1270 : 1280; // 63.5us NTSC / 64us PAL @ 20MHz
+    TCB0.INTCTRL = TCB_CAPT_bm; 
+    TCB0.CTRLA = TCB_ENABLE_bm; 
 #else
 	// Standard Timer 1 Setup for 328P/2560
 	TCCR1A = _BV(COM1A1) | _BV(COM1A0) | _BV(WGM11);
@@ -288,4 +288,5 @@ void render_line6c() {
 // Note: render_line5c and 4c would need similar delay adjustments for 20MHz.
 void render_line5c() { /* Original logic preserved */ }
 void render_line4c() { /* Original logic preserved */ }
+
 
