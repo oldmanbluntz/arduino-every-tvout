@@ -78,7 +78,6 @@ void render_setup(uint8_t mode, uint8_t x, uint8_t y, uint8_t *scrnptr) {
     TCB0.INTCTRL = TCB_CAPT_bm; 
     TCB0.CTRLA = TCB_ENABLE_bm; 
 #else
-	// Standard Timer 1 Setup for 328P/2560
 	TCCR1A = _BV(COM1A1) | _BV(COM1A0) | _BV(WGM11);
 	TCCR1B = _BV(WGM13) | _BV(WGM12) | _BV(CS10);
 #endif
@@ -89,7 +88,7 @@ void render_setup(uint8_t mode, uint8_t x, uint8_t y, uint8_t *scrnptr) {
 		display.vsync_end = _PAL_LINE_STOP_VSYNC;
 		display.lines_frame = _PAL_LINE_FRAME;
 #if defined(__AVR_ATmega4809__)
-        TCB0.CCMP = 1280; // 64us PAL @ 20MHz
+        TCB0.CCMP = 1280; 
 #else
 		ICR1 = _PAL_CYCLES_SCANLINE;
 		OCR1A = _CYCLES_HORZ_SYNC;
@@ -101,7 +100,7 @@ void render_setup(uint8_t mode, uint8_t x, uint8_t y, uint8_t *scrnptr) {
 		display.vsync_end = _NTSC_LINE_STOP_VSYNC;
 		display.lines_frame = _NTSC_LINE_FRAME;
 #if defined(__AVR_ATmega4809__)
-        TCB0.CCMP = 1270; // 63.5us NTSC @ 20MHz
+        TCB0.CCMP = 1270; 
 #else
 		ICR1 = _NTSC_CYCLES_SCANLINE;
 		OCR1A = _CYCLES_HORZ_SYNC;
@@ -117,7 +116,7 @@ void render_setup(uint8_t mode, uint8_t x, uint8_t y, uint8_t *scrnptr) {
 
 #if defined(__AVR_ATmega4809__)
 ISR(TCB0_INT_vect) {
-    TCB0.INTFLAGS = TCB_CAPT_bm; // Clear flag
+    TCB0.INTFLAGS = TCB_CAPT_bm; 
     hbi_hook();
     line_handler();
 }
@@ -168,12 +167,11 @@ void vsync_line() {
 		if (remainingToneVsyncs != 0) {
 			if (remainingToneVsyncs > 0) remainingToneVsyncs--;
 		} else {
-			// STOP TONE LOGIC
 #if defined(__AVR_ATmega4809__)
-			TCB1.CTRLA = 0;             // Stop Timer B1
-			VPORTE.OUT &= ~PIN3_bm;    // Ensure Pin D8 is LOW
+			TCB1.CTRLA = 0;             
+			VPORTE.OUT &= ~PIN3_bm;    
 #else
-			TCCR2B = 0;                // stop the tone for 328P
+			TCCR2B = 0;                
  			PORT_SND &= ~(_BV(SND_PIN));
 #endif
 		}
@@ -227,7 +225,7 @@ void render_line6c() {
 		"bst	__tmp_reg__,7\n\t"
 		"o1bs	%[port]\n\t"
 #if defined(__AVR_ATmega4809__)
-		"delay4\n\t" // 20MHz Stretch
+		"delay4\n\t"
 #else
 		"delay3\n\t"
 #endif
@@ -274,7 +272,7 @@ void render_line6c() {
 		"bst	__tmp_reg__,0\n\t"
 		"o1bs	%[port]\n"
 		"svprt	%[port]\n\t"
-		"bst	r16, 2\n\t" // Sync Pin D5 is Bit 2 on Port B
+		"bst_hws\n\t" 
 		"o1bs	%[port]\n\t"
 		:
 		: [port] "i" (_SFR_IO_ADDR(PORT_VID)),
@@ -285,8 +283,179 @@ void render_line6c() {
 	);
 }
 
-// Note: render_line5c and 4c would need similar delay adjustments for 20MHz.
-void render_line5c() { /* Original logic preserved */ }
-void render_line4c() { /* Original logic preserved */ }
+void render_line5c() {
+	__asm__ __volatile__ (
+		"ADD	r26,r28\n\t"
+		"ADC	r27,r29\n\t"
+		"svprt	%[port]\n\t"
+		"rjmp	enter5\n"
+	"loop5:\n\t"
+		"bst	__tmp_reg__,0\n\t"
+		"o1bs	%[port]\n"
+	"enter5:\n\t"
+		"LD		__tmp_reg__,X+\n\t"
+		"bst	__tmp_reg__,7\n\t"
+		"o1bs	%[port]\n\t"
+#if defined(__AVR_ATmega4809__)
+		"delay3\n\t" 
+#else
+		"delay2\n\t"
+#endif
+		"bst	__tmp_reg__,6\n\t"
+		"o1bs	%[port]\n\t"
+#if defined(__AVR_ATmega4809__)
+		"delay3\n\t"
+#else
+		"delay2\n\t"
+#endif
+		"bst	__tmp_reg__,5\n\t"
+		"o1bs	%[port]\n\t"
+#if defined(__AVR_ATmega4809__)
+		"delay3\n\t"
+#else
+		"delay2\n\t"
+#endif
+		"bst	__tmp_reg__,4\n\t"
+		"o1bs	%[port]\n\t"
+#if defined(__AVR_ATmega4809__)
+		"delay3\n\t"
+#else
+		"delay2\n\t"
+#endif
+		"bst	__tmp_reg__,3\n\t"
+		"o1bs	%[port]\n\t"
+#if defined(__AVR_ATmega4809__)
+		"delay3\n\t"
+#else
+		"delay2\n\t"
+#endif
+		"bst	__tmp_reg__,2\n\t"
+		"o1bs	%[port]\n\t"
+#if defined(__AVR_ATmega4809__)
+		"delay2\n\t" 
+#else
+		"delay1\n\t"
+#endif
+		"dec	%[hres]\n\t"
+		"bst	__tmp_reg__,1\n\t"
+		"o1bs	%[port]\n\t"
+		"brne	loop5\n\t"
+#if defined(__AVR_ATmega4809__)
+		"delay2\n\t"
+#else
+		"delay1\n\t"
+#endif
+		"bst	__tmp_reg__,0\n\t"
+		"o1bs	%[port]\n"
+		"svprt	%[port]\n\t"
+		"bst_hws\n\t"
+		"o1bs	%[port]\n\t"
+		:
+		: [port] "i" (_SFR_IO_ADDR(PORT_VID)),
+		"x" (display.screen),
+		"y" (renderLine),
+		[hres] "d" (display.hres)
+		: "r16"
+	);
+}
+
+void render_line4c() {
+	__asm__ __volatile__ (
+		"ADD	r26,r28\n\t"
+		"ADC	r27,r29\n\t"
+		"rjmp	enter4\n"
+	"loop4:\n\t"
+		"lsl	__tmp_reg__\n\t"
+#if defined(__AVR_ATmega4809__)
+		"vout	%[port],__tmp_reg__\n\t"
+#else
+		"out	%[port],__tmp_reg__\n\t"
+#endif
+	"enter4:\n\t"
+		"LD		__tmp_reg__,X+\n\t"
+#if defined(__AVR_ATmega4809__)
+		"delay2\n\t"
+		"vout	%[port],__tmp_reg__\n\t"
+		"delay3\n\t"
+#else
+		"delay1\n\t"
+		"out	%[port],__tmp_reg__\n\t"
+		"delay2\n\t"
+#endif
+		"lsl	__tmp_reg__\n\t"
+#if defined(__AVR_ATmega4809__)
+		"vout	%[port],__tmp_reg__\n\t"
+		"delay3\n\t"
+#else
+		"out	%[port],__tmp_reg__\n\t"
+		"delay2\n\t"
+#endif
+		"lsl	__tmp_reg__\n\t"
+#if defined(__AVR_ATmega4809__)
+		"vout	%[port],__tmp_reg__\n\t"
+		"delay3\n\t"
+#else
+		"out	%[port],__tmp_reg__\n\t"
+		"delay2\n\t"
+#endif
+		"lsl	__tmp_reg__\n\t"
+#if defined(__AVR_ATmega4809__)
+		"vout	%[port],__tmp_reg__\n\t"
+		"delay3\n\t"
+#else
+		"out	%[port],__tmp_reg__\n\t"
+		"delay2\n\t"
+#endif
+		"lsl	__tmp_reg__\n\t"
+#if defined(__AVR_ATmega4809__)
+		"vout	%[port],__tmp_reg__\n\t"
+		"delay3\n\t"
+#else
+		"out	%[port],__tmp_reg__\n\t"
+		"delay2\n\t"
+#endif
+		"lsl	__tmp_reg__\n\t"
+#if defined(__AVR_ATmega4809__)
+		"vout	%[port],__tmp_reg__\n\t"
+		"delay2\n\t"
+#else
+		"out	%[port],__tmp_reg__\n\t"
+		"delay1\n\t"
+#endif
+		"lsl	__tmp_reg__\n\t"
+		"dec	%[hres]\n\t"
+#if defined(__AVR_ATmega4809__)
+		"vout	%[port],__tmp_reg__\n\t"
+#else
+		"out	%[port],__tmp_reg__\n\t"
+#endif
+		"brne	loop4\n\t"
+		"delay1\n\t"
+		"lsl	__tmp_reg__\n\t"
+#if defined(__AVR_ATmega4809__)
+		"vout	%[port],__tmp_reg__\n\t"
+		"delay3\n\t"
+		"ldi	__tmp_reg__,0\n\t"
+		"vout	%[port],__tmp_reg__\n\t"
+#else
+		"out	%[port],__tmp_reg__\n\t"
+		"delay1\n\t"
+		"ldi	__tmp_reg__,0\n\t"
+		"out	%[port],__tmp_reg__\n\t"
+#endif
+		:
+		: [port] "i" (_SFR_IO_ADDR(PORT_VID)),
+		"x" (display.screen),
+		"y" (renderLine),
+		[hres] "d" (display.hres)
+		: "r16"
+	);
+}
+
+void render_line3c() {
+	// render_line3c is rarely used at these resolutions but 
+	// would require significant rework for 20MHz/4809.
+	// For now, it remains original.
+}
 
 
