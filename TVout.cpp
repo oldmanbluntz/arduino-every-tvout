@@ -784,99 +784,74 @@ void TVout::set_hbi_hook(void (*func)()) {
 } // end of set_bhi_hook
 
 
-/* Simple tone generation
- *
- * Arguments:
- *	frequency:
- *		the frequency of the tone
- * courtesy of adamwwolf
- */
-void TVout::tone(unsigned int frequency) {
-	tone(frequency, 0);
-} // end of tone
-
-
-/* Simple tone generation
- *
- * Arguments:
- *	frequency:
- *		the frequency of the tone
- *	duration_ms:
- *		The duration to play the tone in ms
- * courtesy of adamwwolf
- */
 void TVout::tone(unsigned int frequency, unsigned long duration_ms) {
+	if (frequency == 0) return;
 
-	if (frequency == 0)
-		return;
-
-#if defined(__AVR_ATmega32U4__)
-#define TIMER 0
+#if defined(__AVR_ATmega4809__)
+	// --- Nano Every (ATmega4809) Logic using TCB1 ---
+	TCB1.CTRLA = 0;
+	TCB1.CTRLB = TCB_CNTMODE_FRQ_gc; 
+	uint32_t ccmp = (F_CPU / (2 * (uint32_t)frequency)) - 1;
+	if (ccmp > 0xFFFF) ccmp = 0xFFFF;
+	TCB1.CCMP = (uint16_t)ccmp;
+	TCB1.CTRLB |= TCB_CCMPEN_bm; 
+	TCB1.CTRLA = TCB_ENABLE_bm;
 #else
-#define TIMER 2
-#endif
-	//this is init code
+	// --- Original Timer 2 Logic for 328P/Classic Boards ---
+	#if defined(__AVR_ATmega32U4__)
+		#define TIMER 0
+	#else
+		#define TIMER 2
+	#endif
 	TCCR2A = 0;
 	TCCR2B = 0;
 	TCCR2A |= _BV(WGM21);
 	TCCR2B |= _BV(CS20);
-	//end init code
 
-	//most of this is taken from Tone.cpp from Arduino
 	uint8_t prescalarbits = 0b001;
-	uint32_t ocr = 0;
-  
-
-    DDR_SND |= _BV(SND_PIN); //set pb3 (digital pin 11) to output
-
-    //we are using an 8 bit timer, scan through prescalars to find the best fit
-	ocr = F_CPU / frequency / 2 - 1;
-    prescalarbits = 0b001;  // ck/1: same for both timers
-    if (ocr > 255) {
-        ocr = F_CPU / frequency / 2 / 8 - 1;
-        prescalarbits = 0b010;  // ck/8: same for both timers
-
-        if (ocr > 255) {
+	uint32_t ocr = F_CPU / frequency / 2 - 1;
+	if (ocr > 255) {
+		ocr = F_CPU / frequency / 2 / 8 - 1;
+		prescalarbits = 0b010;
+		if (ocr > 255) {
 			ocr = F_CPU / frequency / 2 / 32 - 1;
 			prescalarbits = 0b011;
-        }
-
-        if (ocr > 255) {
+		}
+		if (ocr > 255) {
 			ocr = F_CPU / frequency / 2 / 64 - 1;
 			prescalarbits = TIMER == 0 ? 0b011 : 0b100;
 			if (ocr > 255) {
 				ocr = F_CPU / frequency / 2 / 128 - 1;
 				prescalarbits = 0b101;
 			}
-
 			if (ocr > 255) {
 				ocr = F_CPU / frequency / 2 / 256 - 1;
 				prescalarbits = TIMER == 0 ? 0b100 : 0b110;
 				if (ocr > 255) {
-					// can't do any better than /1024
 					ocr = F_CPU / frequency / 2 / 1024 - 1;
 					prescalarbits = TIMER == 0 ? 0b101 : 0b111;
 				}
 			}
-        }
-    }
-    TCCR2B = prescalarbits;
+		}
+	}
+	TCCR2B = prescalarbits;
+	OCR2A = ocr;
+	TCCR2A &= ~(_BV(COM2A1));
+	TCCR2A |= _BV(COM2A0);
+#endif
 
 	if (duration_ms > 0)
-		remainingToneVsyncs = duration_ms*60/1000; //60 here represents the framerate
+		remainingToneVsyncs = duration_ms * 60 / 1000;
 	else
 		remainingToneVsyncs = -1;
- 
-    // Set the OCR for the given timer,
-    OCR2A = ocr;
-    //set it to toggle the pin by itself
-    TCCR2A &= ~(_BV(COM2A1)); //set COM2A1 to 0
-    TCCR2A |= _BV(COM2A0);
-} // end of tone
+}
 
-/* Stops tone generation
- */
 void TVout::noTone() {
+#if defined(__AVR_ATmega4809__)
+	TCB1.CTRLA = 0;
+	VPORTE.OUT &= ~PIN3_bm; // Hardware D8
+#else
 	TCCR2B = 0;
-	PORT_SND &= ~(_BV(SND_PIN)); //set pin 11 to 0
-} // end of noTone
+	PORT_SND &= ~(_BV(SND_PIN));
+#endif
+}
