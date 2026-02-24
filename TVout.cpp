@@ -779,23 +779,33 @@ void TVout::set_vbi_hook(void (*func)()) {
  *	funct:
  *		The function to call.
  */
-void TVout::set_hbi_hook(void (*func)()) {
-	hbi_hook = func;
-} // end of set_bhi_hook
+void TVout::tone(unsigned int frequency) {
+	tone(frequency, 0);
+}
 
-
+/* Simple tone generation with duration
+ *
+ * Arguments:
+ *	frequency:
+ *		the frequency of the tone
+ *	duration_ms:
+ *		The duration to play the tone in ms
+ */
 void TVout::tone(unsigned int frequency, unsigned long duration_ms) {
 	if (frequency == 0) return;
 
 #if defined(__AVR_ATmega4809__)
 	// --- Nano Every (ATmega4809) Logic using TCB1 ---
-	TCB1.CTRLA = 0;
-	TCB1.CTRLB = TCB_CNTMODE_FRQ_gc; 
+	TCB1.CTRLA = 0;                  // Stop timer to reset
+	TCB1.CTRLB = TCB_CNTMODE_FRQ_gc; // Set to Frequency Output mode
+	
+	// Calculate Compare Register: CCMP = (F_CPU / (2 * Frequency)) - 1
 	uint32_t ccmp = (F_CPU / (2 * (uint32_t)frequency)) - 1;
-	if (ccmp > 0xFFFF) ccmp = 0xFFFF;
+	if (ccmp > 0xFFFF) ccmp = 0xFFFF; // Cap at 16-bit max
 	TCB1.CCMP = (uint16_t)ccmp;
-	TCB1.CTRLB |= TCB_CCMPEN_bm; 
-	TCB1.CTRLA = TCB_ENABLE_bm;
+
+	TCB1.CTRLB |= TCB_CCMPEN_bm;    // Enable Hardware Output Pin (D8)
+	TCB1.CTRLA = TCB_ENABLE_bm;     // Start Timer
 #else
 	// --- Original Timer 2 Logic for 328P/Classic Boards ---
 	#if defined(__AVR_ATmega32U4__)
@@ -840,18 +850,23 @@ void TVout::tone(unsigned int frequency, unsigned long duration_ms) {
 	TCCR2A |= _BV(COM2A0);
 #endif
 
+	// Duration handling: Convert ms to frame counts
 	if (duration_ms > 0)
 		remainingToneVsyncs = duration_ms * 60 / 1000;
 	else
 		remainingToneVsyncs = -1;
 }
 
+/* Stops tone generation
+ */
 void TVout::noTone() {
 #if defined(__AVR_ATmega4809__)
-	TCB1.CTRLA = 0;
-	VPORTE.OUT &= ~PIN3_bm; // Hardware D8
+	TCB1.CTRLA = 0;             // Stop Timer B1
+	VPORTE.OUT &= ~PIN3_bm;    // Force Pin D8 (Port E, Pin 3) LOW
 #else
-	TCCR2B = 0;
-	PORT_SND &= ~(_BV(SND_PIN));
+	TCCR2B = 0;                // Stop Timer 2
+	PORT_SND &= ~(_BV(SND_PIN)); // Clear Sound Pin
 #endif
 }
+}
+
