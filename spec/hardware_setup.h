@@ -129,6 +129,18 @@
 #define CS20		CS00
 #define WGM21		WGM01
 #endif
+#elif defined(__AVR_ATmega4809__)
+#define PORT_VID    VPORTB.OUT
+#define BIT_VID     PIN0_bm
+#define DDR_VID     VPORTB.DIR
+#define VID_PIN     0
+#define PORT_SYNC   VPORTB.OUT
+#define BIT_SYNC    PIN2_bm
+#define DDR_SYNC    VPORTB.DIR
+#define SYNC_PIN    2
+#define DDR_SND     VPORTE.DIR
+#define SND_PIN     3
+#endif
 
 //automatic BST/BLD/ANDI macro definition
 #if VID_PIN == 0
@@ -165,3 +177,4 @@
 #define ANDI_HWS	"andi	r16,0x7F\n"
 #endif
 #endif
+
